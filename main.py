@@ -4,27 +4,178 @@ import math
 import os
 
 # --- Configurations ---
-WIDTH, HEIGHT = 1080, 1920
+WIDTH, HEIGHT = 720, 1080
 FPS = 60
-ARENA_CENTER = (WIDTH // 2, HEIGHT // 2 + 100)
-ARENA_RADIUS = 480
+ARENA_CENTER = (WIDTH // 2, 700)
+ARENA_RADIUS = 310
 GRID_SIZE = 60
 
 COLORS = {
-    'bg': (5, 5, 20),
-    'grid': (40, 40, 70),
-    'arena_border': (255, 255, 255),
-    'text_primary': (255, 255, 255),
-    'red': (255, 60, 60),
-    'green': (60, 255, 100),
-    'blue': (60, 160, 255),
-    'yellow': (255, 220, 0),
-    'orange': (255, 140, 0),
-    'cyan': (0, 255, 255),
-    'purple': (200, 80, 255),
-    'white': (255, 255, 255),
-    'item_bg': (255, 255, 255, 150)
+    'bg'    : (10,  8, 20),
+    'grid'  : (28, 22, 42),
+    'arena' : (180, 180, 210),
+    'red'   : (215,  50,  50),
+    'green' : ( 50, 190,  70),
+    'blue'  : ( 50, 120, 210),
+    'yellow': (215, 190,   0),
+    'orange': (215, 100,   0),
+    'purple': (150,  50, 210),
+    'cyan'  : (  0, 190, 210),
+    'white' : (235, 235, 235),
 }
+
+# --- Pixel Art System ---
+PS    = 5   # one game-pixel = PS×PS actual pixels
+_BLK  = ( 15,  10,  20)
+_DGY  = ( 55,  50,  65)
+_GRY  = ( 90,  85, 100)
+_LGY  = (155, 150, 165)
+_SKN  = (225, 165, 115)
+_BRN  = (105,  60,  20)
+_TAN  = (158, 108,  52)
+
+def draw_sprite(surf, rows, pal, ox, oy):
+    """Render a 2D list. 0=skip; key → pal[key] colour."""
+    for ry, row in enumerate(rows):
+        for rx, c in enumerate(row):
+            if c:
+                pygame.draw.rect(surf, pal[c],
+                                 (ox+rx*PS, oy+ry*PS, PS, PS))
+
+# Entity sprites 14×14 (palette: 1=BLK 2=body 3=SKN 4=WHT 5=DGY)
+SP_ROUND = [
+    [0,0,0,1,1,1,1,1,1,1,1,0,0,0],
+    [0,0,1,2,2,2,2,2,2,2,2,1,0,0],
+    [0,1,2,2,2,2,2,2,2,2,2,2,1,0],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,2,3,4,3,2,2,3,4,3,2,2,1],
+    [1,2,2,3,5,3,2,2,3,5,3,2,2,1],
+    [1,2,2,3,3,3,2,2,3,3,3,2,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,2,2,1,1,1,1,1,1,2,2,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [0,1,2,2,2,2,2,2,2,2,2,2,1,0],
+    [0,0,1,1,2,2,2,2,2,2,1,1,0,0],
+    [0,0,0,1,5,5,2,2,5,5,1,0,0,0],
+    [0,0,0,1,5,5,0,0,5,5,1,0,0,0],
+]
+SP_ROUND_SAD = [
+    [0,0,0,1,1,1,1,1,1,1,1,0,0,0],
+    [0,0,1,2,2,2,2,2,2,2,2,1,0,0],
+    [0,1,2,2,2,2,2,2,2,2,2,2,1,0],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,2,3,4,3,2,2,3,4,3,2,2,1],
+    [1,2,2,3,5,3,2,2,3,5,3,2,2,1],
+    [1,2,2,3,3,3,2,2,3,3,3,2,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,2,1,1,2,2,2,2,1,1,2,2,1],
+    [1,2,2,2,2,1,1,1,1,2,2,2,2,1],
+    [0,1,2,2,2,2,2,2,2,2,2,2,1,0],
+    [0,0,1,1,2,2,2,2,2,2,1,1,0,0],
+    [0,0,0,1,5,5,2,2,5,5,1,0,0,0],
+    [0,0,0,1,5,5,0,0,5,5,1,0,0,0],
+]
+SP_SQUARE = [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,2,3,4,3,2,2,3,4,3,2,2,1],
+    [1,2,2,3,5,3,2,2,3,5,3,2,2,1],
+    [1,2,2,3,3,3,2,2,3,3,3,2,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,2,2,1,1,1,1,1,1,2,2,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,1,1,1,2,2,2,2,2,2,1,1,1,1],
+    [0,0,0,1,5,5,2,2,5,5,1,0,0,0],
+    [0,0,0,1,5,5,0,0,5,5,1,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+]
+# Gun sprites 16×5 (palette: 1=BLK 2=DGY 3=GRY 4=LGY 5=BRN 6=TAN 7=weapon_color)
+SP_PISTOL = [
+    [0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0],
+    [0,0,1,3,3,3,3,4,1,0,0,0,0,0,0,0],
+    [1,1,1,3,1,3,3,4,1,1,1,1,1,1,0,0],
+    [0,0,1,2,1,0,1,2,2,2,2,2,2,1,0,0],
+    [0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
+]
+SP_AK47 = [
+    [0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0],
+    [0,1,1,1,1,1,1,1,2,4,1,0,0,0,0,0],
+    [1,4,4,3,1,3,3,3,3,4,3,1,1,1,1,1],
+    [0,1,5,1,0,1,6,3,3,3,1,2,2,2,1,0],
+    [0,0,1,5,1,0,0,1,1,1,0,0,0,0,0,0],
+]
+SP_M4 = [
+    [0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+    [0,1,3,3,1,3,3,3,3,3,4,1,0,0,0,0],
+    [1,4,3,1,1,3,3,3,3,3,4,3,1,1,1,1],
+    [0,1,2,1,0,1,2,3,3,1,1,2,2,2,1,0],
+    [0,0,1,1,0,0,0,1,1,0,0,0,0,0,0,0],
+]
+SP_SHOTGUN = [
+    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+    [0,1,6,6,6,6,6,6,6,6,6,6,6,4,1,0],
+    [1,6,6,6,1,6,6,6,6,6,6,6,6,4,1,1],
+    [0,1,5,5,1,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
+]
+SP_MINIGUN = [
+    [0,1,2,1,2,1,2,1,2,1,2,1,1,1,1,1],
+    [1,3,3,3,3,3,3,3,3,3,3,3,3,4,4,1],
+    [1,2,3,2,3,2,3,2,3,2,3,2,3,4,4,1],
+    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+    [0,0,0,1,2,2,2,1,0,0,0,0,0,0,0,0],
+]
+SP_RPG = [
+    [0,0,0,0,0,0,1,1,1,1,7,7,7,1,0,0],
+    [0,1,1,1,1,1,2,2,2,2,7,7,1,0,0,0],
+    [1,3,3,3,3,2,2,2,2,2,7,7,7,1,0,0],
+    [0,1,5,5,1,1,2,2,2,2,7,7,1,0,0,0],
+    [0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0],
+]
+
+WEAPON_SPRITES = {
+    'Pistol':  SP_PISTOL,
+    'AK47':    SP_AK47,
+    'M4':      SP_M4,
+    'Shotgun': SP_SHOTGUN,
+    'Minigun': SP_MINIGUN,
+    'RPG':     SP_RPG,
+}
+
+# Item pixel sprites 8×8
+SP_HEALTH = [
+    [0,0,1,1,0,1,1,0],
+    [0,1,2,2,1,2,2,1],
+    [1,2,2,2,2,2,2,2],
+    [1,2,2,1,1,2,2,2],
+    [1,2,2,1,1,2,2,2],
+    [1,2,2,2,2,2,2,2],
+    [0,1,2,2,2,2,2,1],
+    [0,0,1,1,1,1,1,0],
+]
+SP_SHIELD = [
+    [0,1,1,1,1,1,1,0],
+    [1,2,2,2,2,2,2,1],
+    [1,2,3,3,3,3,2,1],
+    [1,2,3,4,4,3,2,1],
+    [1,2,3,4,4,3,2,1],
+    [0,1,2,3,3,2,1,0],
+    [0,0,1,2,2,1,0,0],
+    [0,0,0,1,1,0,0,0],
+]
+SP_WEAPON_BOX = [
+    [1,1,1,1,1,1,1,1],
+    [1,2,2,2,2,2,2,1],
+    [1,2,1,1,1,1,2,1],
+    [1,2,1,3,3,1,2,1],
+    [1,2,1,3,3,1,2,1],
+    [1,2,1,1,1,1,2,1],
+    [1,2,2,2,2,2,2,1],
+    [1,1,1,1,1,1,1,1],
+]
+
 
 # --- Math Helpers ---
 def distance(p1, p2):
@@ -239,15 +390,25 @@ class Item:
         pygame.draw.circle(s, (*self.color, 100), (int(glow_size*2), int(glow_size*2)), int(glow_size))
         surface.blit(s, (int(self.x - glow_size*2), int(self.y - glow_size*2)))
         
-        pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), self.radius)
-        pygame.draw.circle(surface, (255, 255, 255), (int(self.x), int(self.y)), self.radius, 3)
-        
-        # Icon/Text
-        font = pygame.font.SysFont('Arial', 20, bold=True)
-        text = self.data[0] if self.type == 'weapon' else self.type[0].upper()
-        ts = font.render(text, True, (255, 255, 255))
-        tr = ts.get_rect(center=(self.x, self.y))
-        surface.blit(ts, tr)
+        # Pixel sprite for item
+        if self.type == 'health':
+            sp = SP_HEALTH
+            pal = {1: _BLK, 2: COLORS['red'], 3: (255, 100, 100), 4: (255, 200, 200)}
+        elif self.type == 'shield':
+            sp = SP_SHIELD
+            pal = {1: _BLK, 2: COLORS['cyan'], 3: (0, 230, 255), 4: (200, 255, 255)}
+        else:
+            sp = SP_WEAPON_BOX
+            pal = {1: _BLK, 2: self.color, 3: (255, 255, 200)}
+
+        # Pulsing scale
+        scale = 1.0 + math.sin(self.pulse) * 0.1
+        sp_w = int(len(sp[0]) * PS * scale)
+        sp_h = int(len(sp) * PS * scale)
+        base = pygame.Surface((len(sp[0]) * PS, len(sp) * PS), pygame.SRCALPHA)
+        draw_sprite(base, sp, pal, 0, 0)
+        scaled = pygame.transform.scale(base, (sp_w, sp_h))
+        surface.blit(scaled, (int(self.x) - sp_w // 2, int(self.y) - sp_h // 2))
 
 # --- Entity Class ---
 class Entity:
@@ -304,53 +465,50 @@ class Entity:
             self.emotion = 'neutral'
 
     def draw(self, surface):
-        # Shield
+        # Shield bubble (pixel squares)
         if self.shield > 0:
-            s = pygame.Surface((self.radius*3, self.radius*3), pygame.SRCALPHA)
-            pygame.draw.circle(s, (0, 255, 255, 100), (int(self.radius*1.5), int(self.radius*1.5)), int(self.radius*1.3), 5)
-            surface.blit(s, (int(self.x - self.radius*1.5), int(self.y - self.radius*1.5)))
+            for si in range(24):
+                a = (si / 24) * 2 * math.pi
+                sx = int(self.x + math.cos(a) * (self.radius + 12))
+                sy = int(self.y + math.sin(a) * (self.radius + 12))
+                pygame.draw.rect(surface, (0, 210, 230), (sx - 3, sy - 3, 6, 6))
 
-        # Body
-        body_color = self.color
-        if self.glow_timer > 0:
-            body_color = (255, 255, 255)
-            self.glow_timer -= 1
-            
-        if self.shape_type == 'circle':
-            pygame.draw.circle(surface, body_color, (int(self.x), int(self.y)), self.radius)
-            pygame.draw.circle(surface, (255, 255, 255), (int(self.x), int(self.y)), self.radius, 4)
+        # Choose sprite
+        if self.emotion == 'sad':
+            sp = SP_ROUND_SAD
+        elif self.shape_type == 'square':
+            sp = SP_SQUARE
         else:
-            rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius*2, self.radius*2)
-            pygame.draw.rect(surface, body_color, rect)
-            pygame.draw.rect(surface, (255, 255, 255), rect, 4)
-            
-        # Face
-        self.draw_face(surface)
-        
-        # Weapon — draw real gun shape
-        if self.weapon:
-            target_angle = math.atan2(self.vy, self.vx)
-            draw_gun(surface, self.x, self.y, target_angle, self.weapon.name)
-            
+            sp = SP_ROUND
 
+        # Hit flash: swap body colour to white
+        body_col = (255, 255, 255) if self.glow_timer > 0 else self.color
+        if self.glow_timer > 0:
+            self.glow_timer -= 1
+
+        pal = {1: _BLK, 2: body_col, 3: _SKN, 4: (240, 240, 240), 5: _DGY}
+        sp_w = len(sp[0]) * PS
+        sp_h = len(sp) * PS
+        draw_sprite(surface, sp, pal, int(self.x) - sp_w // 2, int(self.y) - sp_h // 2)
+
+        # Weapon sprite — flipped if moving left
+        if self.weapon and self.weapon.name in WEAPON_SPRITES:
+            w_sp = WEAPON_SPRITES[self.weapon.name]
+            angle = math.atan2(self.vy, self.vx)
+            wcol = self.weapon.color
+            w_pal = {1: _BLK, 2: _DGY, 3: _GRY, 4: _LGY, 5: _BRN, 6: _TAN, 7: wcol}
+            # Render to small surface then rotate
+            gw = len(w_sp[0]) * PS
+            gh = len(w_sp) * PS
+            w_surf = pygame.Surface((gw, gh), pygame.SRCALPHA)
+            draw_sprite(w_surf, w_sp, w_pal, 0, 0)
+            rotated = pygame.transform.rotate(w_surf, -math.degrees(angle))
+            rx = int(self.x + math.cos(angle) * self.radius * 0.6) - rotated.get_width() // 2
+            ry = int(self.y + math.sin(angle) * self.radius * 0.6) - rotated.get_height() // 2
+            surface.blit(rotated, (rx, ry))
 
     def draw_face(self, surface):
-        x, y = self.x, self.y
-        r = self.radius
-        eye_size = r // 4
-        eye_off = r // 2.5
-        
-        # Eyes
-        pygame.draw.circle(surface, (255, 255, 255), (int(x - eye_off), int(y - r//4)), eye_size)
-        pygame.draw.circle(surface, (255, 255, 255), (int(x + eye_off), int(y - r//4)), eye_size)
-        pygame.draw.circle(surface, (0, 0, 0), (int(x - eye_off), int(y - r//4)), eye_size // 2)
-        pygame.draw.circle(surface, (0, 0, 0), (int(x + eye_off), int(y - r//4)), eye_size // 2)
-        
-        # Mouth
-        if self.emotion == 'neutral':
-            pygame.draw.arc(surface, (0, 0, 0), (x - r//2, y + r//8, r, r//3), math.pi, 2*math.pi, 3)
-        else:
-            pygame.draw.arc(surface, (0, 0, 0), (x - r//2, y + r//3, r, r//3), 0, math.pi, 3)
+        pass  # face now handled by sprite
 
 class Projectile:
     def __init__(self, x, y, vx, vy, weapon, owner):
@@ -386,56 +544,36 @@ class Projectile:
 
     def draw(self, surface):
         wname = self.weapon.name
+        alpha = min(255, self.life * 12)
 
         if wname == 'RPG':
-            # Smoke trail
-            for i, (tx, ty) in enumerate(self.trail):
-                alpha = int((i / len(self.trail)) * 160)
-                r = 12 - i
-                if r < 1: continue
-                s = pygame.Surface((r*2, r*2), pygame.SRCALPHA)
-                pygame.draw.circle(s, (180, 100, 50, alpha), (r, r), r)
-                surface.blit(s, (int(tx - r), int(ty - r)))
-            # Rocket body
-            angle = math.atan2(self.vy, self.vx)
-            cos_a, sin_a = math.cos(angle), math.sin(angle)
-            cx, cy = self.x, self.y
-            def rp(ox, oy):
-                return (cx + cos_a*ox - sin_a*oy, cy + sin_a*ox + cos_a*oy)
-            pygame.draw.polygon(surface, (200, 80, 0), [rp(16,0), rp(-8, 7), rp(-8,-7)])
-            pygame.draw.circle(surface, (255, 220, 50), (int(cx), int(cy)), 5)
+            # Pixel rocket + smoke trail
+            for i, (tx, ty) in enumerate(self.trail[::2]):
+                a = int((i / max(len(self.trail), 1)) * 120)
+                pygame.draw.rect(surface, (160, 90, 40, a) if a else (0,0,0),
+                                 (int(tx) - 4, int(ty) - 4, 8, 8))
+            # Rocket head pixel
+            ang = math.atan2(self.vy, self.vx)
+            hx = int(self.x + math.cos(ang) * 10)
+            hy = int(self.y + math.sin(ang) * 10)
+            pygame.draw.rect(surface, (255, 80, 0), (hx - 5, hy - 5, 10, 10))
+            pygame.draw.rect(surface, (255, 220, 50), (int(self.x) - 4, int(self.y) - 4, 8, 8))
 
         elif wname in ('AK47', 'M4'):
-            # Tracer — glowing yellow-orange dot with short trail
-            for i, (tx, ty) in enumerate(self.trail[-6:]):
-                alpha = int((i / 6) * 180)
-                s = pygame.Surface((8, 8), pygame.SRCALPHA)
-                pygame.draw.circle(s, (*self.color, alpha), (4, 4), 4)
-                surface.blit(s, (int(tx - 4), int(ty - 4)))
-            alpha = min(255, self.life * 10)
-            s = pygame.Surface((14, 14), pygame.SRCALPHA)
-            pygame.draw.circle(s, (*self.color, alpha), (7, 7), 7)
-            surface.blit(s, (int(self.x - 7), int(self.y - 7)))
+            # Yellow tracer pixel
+            for i, (tx, ty) in enumerate(self.trail[-5:]):
+                pygame.draw.rect(surface, (*self.color, int((i/5)*alpha)),
+                                 (int(tx) - 3, int(ty) - 3, 6, 6))
+            pygame.draw.rect(surface, self.color, (int(self.x) - 5, int(self.y) - 5, 10, 10))
 
         elif wname == 'Shotgun':
-            # Small white pellet
-            alpha = min(255, self.life * 20)
-            s = pygame.Surface((10, 10), pygame.SRCALPHA)
-            pygame.draw.circle(s, (255, 255, 255, alpha), (5, 5), 5)
-            surface.blit(s, (int(self.x - 5), int(self.y - 5)))
+            pygame.draw.rect(surface, (200, 200, 200), (int(self.x) - 4, int(self.y) - 4, 8, 8))
 
         elif wname == 'Minigun':
-            # Tiny bright spark
-            alpha = min(255, self.life * 15)
-            s = pygame.Surface((10, 10), pygame.SRCALPHA)
-            pygame.draw.circle(s, (255, 255, 100, alpha), (5, 5), 5)
-            surface.blit(s, (int(self.x - 5), int(self.y - 5)))
+            pygame.draw.rect(surface, (255, 255, 80), (int(self.x) - 3, int(self.y) - 3, 6, 6))
 
         else:  # Pistol
-            alpha = min(255, self.life * 15)
-            s = pygame.Surface((self.radius*2, self.radius*2), pygame.SRCALPHA)
-            pygame.draw.circle(s, (*self.color, alpha), (self.radius, self.radius), self.radius)
-            surface.blit(s, (int(self.x - self.radius), int(self.y - self.radius)))
+            pygame.draw.rect(surface, self.color, (int(self.x) - 5, int(self.y) - 5, 10, 10))
 
 # --- Main App ---
 def main():
@@ -563,14 +701,23 @@ def main():
         
         screen.fill(COLORS['bg'])
         
-        # Grid with offset
-        for x in range(0, WIDTH + GRID_SIZE, GRID_SIZE):
-            pygame.draw.line(screen, COLORS['grid'], (x + ox % GRID_SIZE, 0), (x + ox % GRID_SIZE, HEIGHT), 2)
-        for y in range(0, HEIGHT + GRID_SIZE, GRID_SIZE):
-            pygame.draw.line(screen, COLORS['grid'], (0, y + oy % GRID_SIZE), (WIDTH, y + oy % GRID_SIZE), 2)
-            
-        # Arena Border
-        pygame.draw.circle(screen, COLORS['arena_border'], (int(ARENA_CENTER[0] + ox), int(ARENA_CENTER[1] + oy)), ARENA_RADIUS, 10)
+        # Chunky pixel grid
+        gx0 = int(ox) % GRID_SIZE
+        for gx in range(-GRID_SIZE, WIDTH + GRID_SIZE, GRID_SIZE):
+            pygame.draw.rect(screen, COLORS['grid'], (gx + gx0, 0, 2, HEIGHT))
+        gy0 = int(oy) % GRID_SIZE
+        for gy in range(-GRID_SIZE, HEIGHT + GRID_SIZE, GRID_SIZE):
+            pygame.draw.rect(screen, COLORS['grid'], (0, gy + gy0, WIDTH, 2))
+
+        # Arena border — drawn as dashed pixel squares
+        cx, cy = int(ARENA_CENTER[0] + ox), int(ARENA_CENTER[1] + oy)
+        steps = 120
+        for si in range(steps):
+            a = (si / steps) * 2 * math.pi
+            bx2 = cx + int(math.cos(a) * ARENA_RADIUS)
+            by2 = cy + int(math.sin(a) * ARENA_RADIUS)
+            if si % 3 != 0:  # dashed look
+                pygame.draw.rect(screen, COLORS['arena'], (bx2 - 4, by2 - 4, 8, 8))
         
         # Items
         for it in items: it.draw(screen)
@@ -581,37 +728,46 @@ def main():
         # Effects
         effects.draw(screen, font_small)
         
-        # --- UI ---
-        # Title
-        title = font_large.render("BATTLE ROYALE", True, (255, 255, 255))
-        screen.blit(title, (WIDTH//2 - title.get_width()//2, 30))
+        # ══ HP Panel (always 6 rows, fixed position) ══════
+        _ROW   = 44           # height per row
+        _PH    = 6 * _ROW     # total panel height = 264px
+        _BX    = 56           # bar start X
+        _BW    = WIDTH - _BX - 200  # bar width
 
-        # Top Health Bars — one row per entity
-        bar_margin_left = 60
-        bar_w = 700
-        bar_h = 28
-        icon_r = 24
-        row_gap = 80
-        ui_top = 130
+        # Solid panel background
+        pygame.draw.rect(screen, (8, 6, 20), (0, 0, WIDTH, _PH))
+        # Bottom separator
+        pygame.draw.line(screen, (120, 110, 160), (0, _PH), (WIDTH, _PH), 3)
+
         for idx, e in enumerate(entities):
-            row_y = ui_top + idx * row_gap
+            y0 = idx * _ROW
 
-            # Icon (circle/square)
-            pygame.draw.circle(screen, e.color, (bar_margin_left, row_y + bar_h // 2), icon_r)
-            pygame.draw.circle(screen, (255, 255, 255), (bar_margin_left, row_y + bar_h // 2), icon_r, 3)
+            # Left color stripe
+            pygame.draw.rect(screen, e.color, (0, y0 + 2, 10, _ROW - 4))
 
-            # Background bar
-            bx = bar_margin_left + icon_r + 16
-            pygame.draw.rect(screen, (30, 30, 30), (bx, row_y, bar_w, bar_h), border_radius=6)
+            # Bar background
+            pygame.draw.rect(screen, (22, 20, 38), (_BX, y0 + 8, _BW, 28))
+
             # HP fill
-            fill_w = max(0, int(bar_w * (e.hp / e.max_hp)))
-            pygame.draw.rect(screen, e.color, (bx, row_y, fill_w, bar_h), border_radius=6)
-            # Outline
-            pygame.draw.rect(screen, (180, 180, 180), (bx, row_y, bar_w, bar_h), 2, border_radius=6)
+            fw = max(0, int(_BW * max(0.0, e.hp) / e.max_hp))
+            if fw > 0:
+                pygame.draw.rect(screen, e.color, (_BX, y0 + 8, fw, 28))
 
-            # Weapon label
-            wlabel = font_small.render(e.weapon.name, True, (220, 220, 220))
-            screen.blit(wlabel, (bx + bar_w + 12, row_y + (bar_h - wlabel.get_height()) // 2))
+            # White border
+            pygame.draw.rect(screen, (230, 230, 230), (_BX, y0 + 8, _BW, 28), 2)
+
+            # Entity mini icon (square of color)
+            pygame.draw.rect(screen, e.color, (12, y0 + 6, 32, 32))
+            pygame.draw.rect(screen, (255, 255, 255), (12, y0 + 6, 32, 32), 2)
+
+            # HP + weapon text
+            label = font_small.render(
+                f"{max(0, int(e.hp))}/{e.max_hp}   {e.weapon.name}", True, (255, 255, 255))
+            screen.blit(label, (_BX + 4, y0 + 8 + (28 - label.get_height()) // 2))
+
+        # Title — FIXED y, never changes
+        title = font_large.render("BATTLE ROYALE", True, (255, 255, 255))
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, _PH + 10))
 
         watermark = font_small.render("@MrBouncerson", True, (100, 100, 100))
         screen.blit(watermark, (WIDTH//2 - watermark.get_width()//2, HEIGHT - 50))
